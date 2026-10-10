@@ -1,0 +1,17 @@
+# Cloudflare Worker: static files from public/ plus the /api proxy (free plan).
+# The key is a secret, never a var here:  npx wrangler secret put NEBIUS_API_KEY
+# Without it the game runs on the built-in mock model.
+name = "npc-cross-exam"
+main = "src/worker.js"
+compatibility_date = "2026-09-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[vars]
+NEBIUS_BASE_URL = "https://api.tokenfactory.nebius.com/v1"
+NEBIUS_MODEL = "nvidia/nemotron-3-super-120b-a12b"
+RATE_LIMIT_PER_MIN = "20"
+RATE_LIMIT_BURST = "8"
+DAILY_MODEL_CALLS = "1500"

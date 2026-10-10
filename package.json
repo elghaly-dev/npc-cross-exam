@@ -1,0 +1,17 @@
+{
+  "name": "npc-cross-exam",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A detective game where suspects are played by NVIDIA Nemotron on Nebius Token Factory.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/dev-server.js",
+    "test": "node --test test/*.test.js",
+    "check:words": "node scripts/check-words.mjs",
+    "deploy": "npx wrangler deploy"
+  }
+}
