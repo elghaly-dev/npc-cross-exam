@@ -6,6 +6,9 @@ const c = (about, slot, value) => ({ about, slot, value });
 export const harborCompass = {
   id: 'harbor-compass',
   title: 'The Harbor Compass',
+  teaser: 'A brass compass disappears from a museum case on a storm night.',
+  item: ['compass'],
+  accuseQuestion: 'Who took the compass?',
   intro:
     'Storm night at the Harbor Museum. Between 21:00 and 22:00 someone opened the East ' +
     'Gallery display case and took the 1852 brass compass. Three people were around. ' +

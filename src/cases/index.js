@@ -1,11 +1,28 @@
 import { harborCompass } from './harbor-compass.js';
+import { greenhouseOrchid } from './greenhouse-orchid.js';
+import { operaScore } from './opera-score.js';
 
-const CASES = new Map([[harborCompass.id, harborCompass]]);
+const CASES = new Map([harborCompass, greenhouseOrchid, operaScore].map((c) => [c.id, c]));
 
 export const DEFAULT_CASE_ID = harborCompass.id;
 
 export function getCase(id = DEFAULT_CASE_ID) {
   return CASES.get(id) ?? null;
+}
+
+export function caseIds() {
+  return [...CASES.keys()];
+}
+
+// The case list for the picker: titles and teasers only.
+export function listCases() {
+  return [...CASES.values()].map((c) => ({
+    id: c.id,
+    title: c.title,
+    teaser: c.teaser,
+    questionBudget: c.questionBudget,
+    suspects: Object.values(c.suspects).map((s) => s.name),
+  }));
 }
 
 export function evidenceCard(caseData, id) {
@@ -19,7 +36,9 @@ export function publicCase(caseData) {
   return {
     id: caseData.id,
     title: caseData.title,
+    teaser: caseData.teaser,
     intro: caseData.intro,
+    accuseQuestion: caseData.accuseQuestion,
     questionBudget: caseData.questionBudget,
     startEvidence: [...caseData.startEvidence],
     suspects: Object.entries(caseData.suspects).map(([id, s]) => ({

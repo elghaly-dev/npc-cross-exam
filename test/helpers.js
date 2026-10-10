@@ -1,5 +1,6 @@
 import { createApp } from '../src/api.js';
 import { createRateLimiter } from '../src/ratelimit.js';
+import { getCase } from '../src/cases/index.js';
 
 export const BASE = 'http://game.test';
 
@@ -30,7 +31,7 @@ export function get(app, path) {
 // Plays one question the way the browser does and appends the turn to the game.
 export async function askTurn(app, game, suspectId, question, present = null) {
   const res = await post(app, '/api/ask', {
-    caseId: 'harbor-compass',
+    caseId: game.caseId,
     suspectId,
     question,
     present,
@@ -53,6 +54,6 @@ export async function askTurn(app, game, suspectId, question, present = null) {
   return data;
 }
 
-export function newGame() {
-  return { turns: [], unlocked: new Set(['case_lock']), contradictions: [] };
+export function newGame(caseId = 'harbor-compass') {
+  return { caseId, turns: [], unlocked: new Set(getCase(caseId).startEvidence), contradictions: [] };
 }

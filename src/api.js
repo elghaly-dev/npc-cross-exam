@@ -2,11 +2,12 @@
 // and rate-limits each visitor. Stateless: the browser sends the turns so far.
 //
 //   GET  /api/health   mode and model name
-//   GET  /api/case     public case data (no secrets)
+//   GET  /api/cases    the case list for the picker
+//   GET  /api/case     public case data (no secrets); ?id= picks the case
 //   POST /api/ask      one question to one suspect
 //   POST /api/accuse   the accusation; returns the score and the true story
 
-import { getCase, publicCase, evidenceCard, DEFAULT_CASE_ID } from './cases/index.js';
+import { getCase, publicCase, evidenceCard, listCases, DEFAULT_CASE_ID } from './cases/index.js';
 import { buildMessages } from './prompt.js';
 import { createModelClient, completionText, ModelError } from './model/client.js';
 import { parseSuspectOutput, validateClaims, cleanText } from './model/parse.js';
@@ -249,6 +250,9 @@ export function createApp(env = {}, deps = {}) {
       if (url.pathname === '/api/health' && request.method === 'GET') {
         return json(200, { ok: true, mode: client.mode, model: client.model });
       }
+      if (url.pathname === '/api/cases' && request.method === 'GET') {
+        return json(200, { cases: listCases(), mode: client.mode, model: client.model });
+      }
       if (url.pathname === '/api/case' && request.method === 'GET') {
         const caseData = loadCase(url.searchParams.get('id') ?? undefined);
         return json(200, { ...publicCase(caseData), mode: client.mode, model: client.model });
@@ -257,7 +261,7 @@ export function createApp(env = {}, deps = {}) {
         if (request.method !== 'POST') throw new HttpError(405, 'method', 'Use POST.', { allow: 'POST' });
         return url.pathname === '/api/ask' ? await ask(request, ctx) : await accuse(request, ctx);
       }
-      if (url.pathname === '/api/health' || url.pathname === '/api/case') {
+      if (['/api/health', '/api/case', '/api/cases'].includes(url.pathname)) {
         throw new HttpError(405, 'method', 'Use GET.', { allow: 'GET' });
       }
       throw new HttpError(404, 'not_found', 'Not found.');

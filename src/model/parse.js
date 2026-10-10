@@ -3,7 +3,14 @@
 
 export const MAX_REPLY_CHARS = 600;
 const MAX_CLAIMS = 8;
-const CONFESSION = /\bI\s+(?:took|stole|grabbed|nicked|have)\s+(?:it|the compass)\b|\bI did it\b/i;
+const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// "I took it", "I stole the orchid", "I swapped the page", "I did it".
+function confession(caseData) {
+  const items = (caseData.item ?? []).map(escape).join('|');
+  const object = items ? `(?:it|the (?:${items}))` : 'it';
+  return new RegExp(`\\bI\\s+(?:took|stole|grabbed|nicked|have|swapped|switched)\\s+${object}\\b|\\bI did it\\b`, 'i');
+}
 
 function stripReasoning(text) {
   return text
@@ -88,7 +95,7 @@ export function parseSuspectOutput(text, caseData, suspectId) {
   const forbidden = suspect.neverAdmit.some((n) =>
     out.claims.some((c) => c.about === n.about && c.slot === n.slot && c.value === n.value),
   );
-  if (forbidden || (suspect.neverAdmit.length && CONFESSION.test(out.reply))) {
+  if (forbidden || (suspect.neverAdmit.length && confession(caseData).test(out.reply))) {
     return {
       reply: suspect.holdLine,
       claims: suspect.neverAdmit.map((n) => ({ ...n, value: n.value === 'yes' ? 'no' : 'yes' })),

@@ -2,6 +2,7 @@ import { scoreGame } from './shared/score.js';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'npcx:v1:';
+const LAST = 'npcx:last-case';
 const KIND = { self: 'Changed story', cross: 'Stories clash', evidence: 'Story vs evidence' };
 const PRESS_Q = {
   self: 'Earlier you told me something different. Which is true?',
@@ -10,6 +11,7 @@ const PRESS_Q = {
 };
 
 const state = {
+  cases: null,
   info: null,
   active: null,
   turns: [],
@@ -77,6 +79,27 @@ function restore() {
   } catch {}
 }
 
+// Status line for the picker, from what this browser saved for that case.
+function savedStatus(id) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE + id) || 'null');
+    if (saved?.result) {
+      return { cls: 'solved', text: `${saved.result.correct ? 'Solved' : 'Closed'} · grade ${saved.result.score.grade}` };
+    }
+    const n = Array.isArray(saved?.turns) ? saved.turns.length : 0;
+    if (n) return { cls: 'going', text: `In progress · ${n} question${n === 1 ? '' : 's'} asked` };
+  } catch {}
+  return { cls: '', text: 'New case' };
+}
+
+function lastCase() {
+  try { return localStorage.getItem(LAST); } catch { return null; }
+}
+
+function rememberCase(id) {
+  try { localStorage.setItem(LAST, id); } catch {}
+}
+
 function clearSaved() {
   try { localStorage.removeItem(STORE + state.info.id); } catch {}
 }
@@ -100,6 +123,7 @@ function toast(message) {
 }
 
 function renderHeader() {
+  if (!state.info) return;
   const s = liveScore();
   $('score').textContent = state.result ? state.result.score.total : s.total;
   $('left').textContent = Math.max(0, questionsLeft());
@@ -381,6 +405,7 @@ function openAccuse() {
       ),
     ),
   );
+  $('accuse-h').textContent = state.info.accuseQuestion || 'Who did it?';
   $('accuse-go').disabled = true;
   openDialog('accuse-dlg');
 }
@@ -445,6 +470,11 @@ function wire() {
     fresh();
     render();
   });
+  $('other-case').addEventListener('click', () => {
+    $('result-dlg').close();
+    showPicker();
+  });
+  $('cases-btn').addEventListener('click', showPicker);
   for (const d of document.querySelectorAll('dialog')) {
     d.addEventListener('click', (e) => {
       if (e.target === d || e.target.closest('[data-close]')) d.close();
@@ -456,24 +486,96 @@ function wire() {
   fit();
 }
 
-async function init() {
-  wire();
+/* ---------- case picker ---------- */
+
+function showLoading(text) {
+  const box = $('loading');
+  box.textContent = text;
+  box.hidden = false;
+}
+
+function setUrl(id) {
+  const url = id ? `${location.pathname}?case=${encodeURIComponent(id)}` : location.pathname;
+  try { history.replaceState(null, '', url); } catch {}
+}
+
+async function showPicker() {
+  for (const d of document.querySelectorAll('dialog[open]')) d.close();
+  $('main').hidden = true;
+  $('dock').hidden = true;
+  document.body.classList.add('picking');
+  setUrl(null);
+  if (!state.cases) {
+    showLoading('Loading the cases…');
+    try {
+      const res = await fetch('/api/cases');
+      if (!res.ok) throw new Error();
+      state.cases = await res.json();
+    } catch {
+      showLoading('The case list did not load. Refresh to try again.');
+      return;
+    }
+  }
+  $('loading').hidden = true;
+  const { cases, mode, model } = state.cases;
+  $('mode').textContent = mode === 'mock' ? 'Mock model' : /nemotron/i.test(model) ? 'Nemotron' : 'Model';
+  $('score').textContent = '0';
+  $('left').textContent = '–';
+  $('case-list').replaceChildren(
+    ...cases.map((c) => {
+      const st = savedStatus(c.id);
+      return el(
+        'li',
+        {},
+        el(
+          'button',
+          { type: 'button', class: 'case-card', onclick: () => openCase(c.id) },
+          el('span', { class: 't' }, c.title),
+          el('span', { class: 'muted' }, c.teaser),
+          el('span', { class: 'meta' }, `${c.suspects.join(' · ')} · ${c.questionBudget} questions`),
+          el('span', { class: `pill status ${st.cls}` }, st.text),
+        ),
+      );
+    }),
+  );
+  $('picker').hidden = false;
+}
+
+async function openCase(id) {
+  showLoading('Loading the case…');
+  $('picker').hidden = true;
+  let info;
   try {
-    const res = await fetch('/api/case');
-    if (!res.ok) throw new Error();
-    state.info = await res.json();
+    const res = await fetch(`/api/case?id=${encodeURIComponent(id)}`);
+    if (!res.ok) throw new Error(String(res.status));
+    info = await res.json();
   } catch {
-    $('loading').textContent = 'The case file did not load. Refresh to try again.';
+    toast('That case did not load. Pick one from the list.');
+    showPicker();
     return;
   }
-  $('case-title').textContent = state.info.title;
-  $('case-intro').textContent = state.info.intro;
+  state.info = info;
+  rememberCase(info.id);
+  setUrl(info.id);
+  $('case-title').textContent = info.title;
+  $('case-intro').textContent = info.intro;
   fresh();
   restore();
-  if (state.turns.length) $('intro').open = false;
+  $('intro').open = !state.turns.length;
   render();
-  $('loading').remove();
+  $('loading').hidden = true;
+  document.body.classList.remove('picking');
   $('main').hidden = false;
+  $('dock').hidden = false;
+  document.documentElement.style.setProperty('--dock-h', `${$('dock').offsetHeight}px`);
+  window.scrollTo(0, 0);
+}
+
+async function init() {
+  wire();
+  const wanted = new URLSearchParams(location.search).get('case') || lastCase();
+  if (wanted) await openCase(wanted);
+  else await showPicker();
 }
 
 init();

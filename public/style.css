@@ -245,3 +245,23 @@ dialog::backdrop { background: rgba(13, 11, 31, 0.7); }
   .log li { animation: rise 180ms ease-out; }
   @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 }
+
+/* Case picker */
+.picker h1 { font-size: 1.5rem; margin-top: 0.5rem; }
+.cases { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: 0.75rem; }
+.case-card {
+  width: 100%; text-align: left; cursor: pointer;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 1rem; display: grid; gap: 0.35rem;
+}
+.case-card:hover { border-color: var(--line-hover); }
+.case-card .t { font-weight: 800; font-size: 1.05rem; }
+.case-card .meta { font-size: 0.8rem; color: var(--muted); }
+.case-card .status { justify-self: start; }
+.case-card .status.solved { color: var(--pos); }
+.case-card .status.going { color: var(--gold); }
+.dock[hidden] { display: none; }
+body.picking { padding-bottom: 1.5rem; }
+.how { font-size: 0.85rem; }
+#cases-btn { margin-top: 0.5rem; }
+#other-case { margin-top: 0.5rem; }

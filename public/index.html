@@ -21,12 +21,20 @@
     </span>
   </header>
 
-  <p class="loading" id="loading" role="status">Loading the case…</p>
+  <p class="loading" id="loading" role="status">Loading…</p>
+
+  <main id="picker" class="picker" hidden>
+    <h1>Pick a case</h1>
+    <p class="muted">Each case has three suspects and one culprit. Ask questions, show evidence, catch the contradictions, then make your accusation.</p>
+    <ul class="cases" id="case-list"></ul>
+  </main>
 
   <main id="main" hidden>
     <details class="card intro" id="intro" open>
       <summary><h1 id="case-title">The case</h1></summary>
       <p id="case-intro" class="muted"></p>
+      <p class="how muted">How to play: ask questions, tap <b>Evidence</b> to show a piece to a suspect, and open the <b>Notebook</b> to press on contradictions.</p>
+      <button type="button" class="link" id="cases-btn">All cases</button>
     </details>
 
     <div class="suspects" role="tablist" aria-label="Suspects" id="suspects"></div>
@@ -37,7 +45,7 @@
     </section>
   </main>
 
-  <footer class="dock">
+  <footer class="dock" id="dock" hidden>
     <div class="chips" id="chips" aria-label="Suggested questions"></div>
     <div class="present-row" id="present-row" hidden>
       <span>Showing: <b id="present-name"></b></span>
@@ -74,7 +82,7 @@
 
   <dialog id="accuse-dlg" aria-labelledby="accuse-h">
     <form class="dlg" id="accuse-form" method="dialog">
-      <div class="dlg-head"><h2 id="accuse-h">Who took the compass?</h2><button type="button" class="close" data-close aria-label="Close">×</button></div>
+      <div class="dlg-head"><h2 id="accuse-h">Who did it?</h2><button type="button" class="close" data-close aria-label="Close">×</button></div>
       <p class="muted">This ends the game. Contradictions that involve the person you accuse count in your favour.</p>
       <fieldset class="pick" id="accuse-pick"><legend class="sr-only">Suspect</legend></fieldset>
       <button class="btn gold wide" type="submit" id="accuse-go" disabled>Accuse</button>
@@ -88,6 +96,7 @@
       <p id="solution"></p>
       <table class="score" id="result-table"></table>
       <button type="button" class="btn gold wide" id="again">Play again</button>
+      <button type="button" class="btn wide" id="other-case">Pick another case</button>
     </div>
   </dialog>
 
