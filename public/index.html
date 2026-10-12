@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>NPC Cross-Exam</title>
+  <meta name="description" content="A detective game for your phone. Question three suspects played by NVIDIA Nemotron and catch their contradictions.">
+  <meta name="theme-color" content="#5a4fc0">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <span class="brand">NPC Cross-Exam</span>
+    <span class="stats">
+      <span id="mode" class="pill">…</span>
+      <span class="stat"><b id="score">0</b> pts</span>
+      <span class="stat"><b id="left">–</b> left</span>
+    </span>
+  </header>
+
+  <p class="loading" id="loading" role="status">Loading…</p>
+
+  <main id="picker" class="picker" hidden>
+    <h1>Pick a case</h1>
+    <p class="muted">Each case has three suspects and one culprit. Ask questions, show evidence, catch the contradictions, then make your accusation.</p>
+    <ul class="cases" id="case-list"></ul>
+  </main>
+
+  <main id="main" hidden>
+    <details class="card intro" id="intro" open>
+      <summary><h1 id="case-title">The case</h1></summary>
+      <p id="case-intro" class="muted"></p>
+      <p class="how muted">How to play: ask questions, tap <b>Evidence</b> to show a piece to a suspect, and open the <b>Notebook</b> to press on contradictions.</p>
+      <button type="button" class="link" id="cases-btn">All cases</button>
+    </details>
+
+    <div class="suspects" role="tablist" aria-label="Suspects" id="suspects"></div>
+
+    <section class="card panel" id="panel" role="tabpanel">
+      <p class="muted bio" id="bio"></p>
+      <ol class="log" id="log" aria-live="polite"></ol>
+    </section>
+  </main>
+
+  <footer class="dock" id="dock" hidden>
+    <div class="chips" id="chips" aria-label="Suggested questions"></div>
+    <div class="present-row" id="present-row" hidden>
+      <span>Showing: <b id="present-name"></b></span>
+      <button type="button" class="link" id="present-clear">Remove</button>
+    </div>
+    <form id="ask-form" class="ask" autocomplete="off">
+      <label class="sr-only" for="q">Your question</label>
+      <input id="q" name="q" maxlength="280" placeholder="Ask a question" enterkeyhint="send">
+      <button class="btn gold" id="ask-btn" type="submit">Ask</button>
+    </form>
+    <div class="actions">
+      <button type="button" class="btn" id="evidence-btn">Evidence <span class="count" id="ev-count"></span></button>
+      <button type="button" class="btn" id="notes-btn">Notebook <span class="count" id="ct-count"></span></button>
+      <button type="button" class="btn outline" id="accuse-btn">Accuse</button>
+    </div>
+  </footer>
+
+  <dialog id="evidence-dlg" aria-labelledby="evidence-h">
+    <div class="dlg">
+      <div class="dlg-head"><h2 id="evidence-h">Evidence</h2><button type="button" class="close" data-close aria-label="Close">×</button></div>
+      <p class="muted" id="evidence-sub"></p>
+      <ul class="cards" id="evidence-list"></ul>
+    </div>
+  </dialog>
+
+  <dialog id="notes-dlg" aria-labelledby="notes-h">
+    <div class="dlg">
+      <div class="dlg-head"><h2 id="notes-h">Notebook</h2><button type="button" class="close" data-close aria-label="Close">×</button></div>
+      <ul class="cards" id="notes-list"></ul>
+      <h3>Score so far</h3>
+      <table class="score" id="score-table"></table>
+    </div>
+  </dialog>
+
+  <dialog id="accuse-dlg" aria-labelledby="accuse-h">
+    <form class="dlg" id="accuse-form" method="dialog">
+      <div class="dlg-head"><h2 id="accuse-h">Who did it?</h2><button type="button" class="close" data-close aria-label="Close">×</button></div>
+      <p class="muted">This ends the game. Contradictions that involve the person you accuse count in your favour.</p>
+      <fieldset class="pick" id="accuse-pick"><legend class="sr-only">Suspect</legend></fieldset>
+      <button class="btn gold wide" type="submit" id="accuse-go" disabled>Accuse</button>
+    </form>
+  </dialog>
+
+  <dialog id="result-dlg" aria-labelledby="result-h">
+    <div class="dlg">
+      <div class="dlg-head"><h2 id="result-h"></h2><button type="button" class="close" data-close aria-label="Close">×</button></div>
+      <p class="grade"><span id="grade"></span><span id="total"></span></p>
+      <p id="solution"></p>
+      <table class="score" id="result-table"></table>
+      <button type="button" class="btn gold wide" id="again">Play again</button>
+      <button type="button" class="btn wide" id="other-case">Pick another case</button>
+    </div>
+  </dialog>
+
+  <noscript><p class="card">This game needs JavaScript.</p></noscript>
+</body>
+</html>
