@@ -68,10 +68,18 @@ npm start
 | `NEBIUS_BASE_URL` | `https://api.tokenfactory.nebius.com/v1` | OpenAI-compatible base URL. |
 | `NEBIUS_MODEL` | `nvidia/nemotron-3-super-120b-a12b` | Model id. |
 | `NEBIUS_JSON_MODE` | `json_object` | Set to `off` if the model rejects `response_format`. |
-| `RATE_LIMIT_PER_MIN` | `20` | Questions per minute per visitor. |
-| `RATE_LIMIT_BURST` | `8` | Questions allowed back to back. |
+| `RATE_LIMIT_PER_MIN` | `20` | Questions per minute per visitor, per server instance. |
+| `RATE_LIMIT_BURST` | `8` | Questions allowed back to back, per server instance. |
 | `DAILY_MODEL_CALLS` | `1500` | Cap on Nemotron calls per day, per server instance. |
 | `ALLOWED_ORIGINS` | same origin | Extra origins allowed to call the API, comma-separated. |
+| `RECEIPT_SECRET` | random per instance | Signs the receipt on every answer. `/api/accuse` names the culprit only for a history of at least 3 questions with valid receipts. A secret: set it with `wrangler secret put`. |
+
+**The rate limit is per instance.** The per-visitor bucket and the daily cap are counted in
+memory by each server instance. Cloudflare can run several instances of the Worker, so a
+visitor whose requests reach more than one instance gets more than the numbers above, and
+the daily cap applies to each instance on its own. That is enough for a demo. For one
+shared limit, add a Cloudflare rate-limiting binding named `RATE_LIMITER`; the proxy
+checks it first when it is there.
 
 ## Deploy
 
@@ -80,6 +88,7 @@ The game is static files plus one Cloudflare Worker, which fits the free plan.
 ```bash
 npx wrangler deploy                      # mock model until the key is set
 npx wrangler secret put NEBIUS_API_KEY   # switch to Nemotron
+npx wrangler secret put RECEIPT_SECRET   # any long random string
 ```
 
 ## License
