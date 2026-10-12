@@ -4,14 +4,16 @@
 //   GET  /api/health   mode and model name
 //   GET  /api/cases    the case list for the picker
 //   GET  /api/case     public case data (no secrets); ?id= picks the case
-//   POST /api/ask      one question to one suspect
-//   POST /api/accuse   the accusation; returns the score and the true story
+//   POST /api/ask      one question to one suspect; the answer carries a signed receipt
+//   POST /api/accuse   the accusation; returns the score and the true story, but only for
+//                      a history of at least MIN_QUESTIONS turns with valid receipts
 
-import { getCase, publicCase, evidenceCard, listCases, DEFAULT_CASE_ID } from './cases/index.js';
+import { getCase, publicCase, evidenceCard, listCases, DEFAULT_CASE_ID, MIN_QUESTIONS } from './cases/index.js';
 import { buildMessages } from './prompt.js';
 import { createModelClient, completionText, ModelError } from './model/client.js';
 import { parseSuspectOutput, validateClaims, cleanText } from './model/parse.js';
 import { limiterFromEnv } from './ratelimit.js';
+import { receiptKey, signTurn, verifyChain } from './receipts.js';
 import { detect } from '../public/shared/detector.js';
 import { scoreGame, RULES } from '../public/shared/score.js';
 
@@ -88,6 +90,22 @@ function question(value) {
   return q;
 }
 
+// One turn in the form receipts are signed over. /api/ask signs a new turn in this form and
+// readHistory() brings each turn the browser sends back to it, so the two always match.
+function normalizeTurn(t, caseData) {
+  return {
+    suspectId: t.suspectId,
+    question: cleanText(t.question, MAX_QUESTION_CHARS),
+    present: t.present && caseData.evidence[t.present] ? t.present : null,
+    reply: cleanText(t.reply),
+    claims: validateClaims(t.claims, caseData),
+    reveals: Array.isArray(t.reveals)
+      ? t.reveals.filter((id) => caseData.evidence[id]?.holder === t.suspectId)
+      : [],
+    cracked: t.cracked === true,
+  };
+}
+
 // History comes from the browser, so every field is checked again here.
 function readHistory(raw, caseData) {
   if (raw === undefined) return [];
@@ -99,18 +117,7 @@ function readHistory(raw, caseData) {
     if (!t || typeof t !== 'object' || !caseData.suspects[t.suspectId]) {
       throw new HttpError(400, 'bad_history', 'History has an unknown suspect.');
     }
-    const present = t.present && caseData.evidence[t.present] ? t.present : null;
-    return {
-      suspectId: t.suspectId,
-      question: cleanText(t.question, MAX_QUESTION_CHARS),
-      present,
-      reply: cleanText(t.reply),
-      claims: validateClaims(t.claims, caseData),
-      reveals: Array.isArray(t.reveals)
-        ? t.reveals.filter((id) => caseData.evidence[id]?.holder === t.suspectId)
-        : [],
-      cracked: t.cracked === true,
-    };
+    return { ...normalizeTurn(t, caseData), receipt: typeof t.receipt === 'string' ? t.receipt : null };
   });
 }
 
@@ -143,6 +150,10 @@ export function createApp(env = {}, deps = {}) {
   const client = deps.client ?? createModelClient(env, deps);
   const limiter = deps.limiter ?? limiterFromEnv(env);
   const log = deps.log ?? ((...a) => console.warn(...a));
+  const key = receiptKey(env.RECEIPT_SECRET);
+  if (!env.RECEIPT_SECRET && client.mode !== 'mock') {
+    log('RECEIPT_SECRET is not set: receipts only check out on the instance that issued them.');
+  }
 
   async function rateLimit(request, ctx) {
     const ip = ctx.ip || 'unknown';
@@ -201,8 +212,11 @@ export function createApp(env = {}, deps = {}) {
     const turn = { suspectId, question: q, present, ...out, cracked: out.cracked && !already };
     for (const id of turn.reveals) unlocked.add(id);
     const turns = [...history, turn];
+    const prev = history.length ? history[history.length - 1].receipt ?? '' : '';
+    const receipt = await signTurn(await key, caseData.id, history.length, prev, normalizeTurn(turn, caseData));
 
     return json(200, {
+      receipt,
       reply: turn.reply,
       claims: turn.claims,
       reveals: turn.reveals.map((id) => evidenceCard(caseData, id)),
@@ -222,6 +236,14 @@ export function createApp(env = {}, deps = {}) {
     if (!accused) throw new HttpError(400, 'no_suspect', 'Unknown suspect.');
     const history = readHistory(body.history, caseData);
     await rateLimit(request, ctx);
+    // Nothing about the culprit leaves the server for a made-up or too-short game.
+    if (!(await verifyChain(await key, caseData.id, history))) {
+      throw new HttpError(400, 'bad_history', 'This game history was not issued by this server. Start a new game.');
+    }
+    const minQuestions = Math.min(MIN_QUESTIONS, caseData.questionBudget);
+    if (history.length < minQuestions) {
+      throw new HttpError(409, 'too_early', `Ask at least ${minQuestions} questions before you accuse.`);
+    }
 
     const unlocked = readUnlocked(body.unlocked, caseData, history);
     const contradictions = contradictionsFor(caseData, history, unlocked);

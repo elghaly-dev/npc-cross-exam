@@ -50,10 +50,15 @@ test('a full game on the mock model: find the contradictions, break the suspects
   assert.ok(result.score.total >= 180, `total ${result.score.total}`);
 });
 
-test('a lazy accusation with no questions scores low', async () => {
-  const res = await post(makeApp(), '/api/accuse', { suspectId: 'theo', history: [] });
+test('a lazy accusation after the fewest questions allowed scores low', async () => {
+  const app = makeApp();
+  const game = newGame();
+  await askTurn(app, game, 'rosa', 'Nice evening?');
+  await askTurn(app, game, 'rosa', 'Nice evening?');
+  await askTurn(app, game, 'rosa', 'Nice evening?');
+  const res = await post(app, '/api/accuse', { suspectId: 'theo', history: game.turns });
   const result = await res.json();
+  assert.equal(res.status, 200);
   assert.equal(result.correct, true);
-  assert.equal(result.score.total, 50);
   assert.equal(result.score.grade, 'C');
 });

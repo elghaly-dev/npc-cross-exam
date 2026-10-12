@@ -6,6 +6,9 @@ const CASES = new Map([harborCompass, greenhouseOrchid, operaScore].map((c) => [
 
 export const DEFAULT_CASE_ID = harborCompass.id;
 
+// Questions a player must really ask (checked by receipt) before /api/accuse answers.
+export const MIN_QUESTIONS = 3;
+
 export function getCase(id = DEFAULT_CASE_ID) {
   return CASES.get(id) ?? null;
 }
@@ -40,6 +43,7 @@ export function publicCase(caseData) {
     intro: caseData.intro,
     accuseQuestion: caseData.accuseQuestion,
     questionBudget: caseData.questionBudget,
+    minQuestions: Math.min(MIN_QUESTIONS, caseData.questionBudget),
     startEvidence: [...caseData.startEvidence],
     suspects: Object.entries(caseData.suspects).map(([id, s]) => ({
       id,

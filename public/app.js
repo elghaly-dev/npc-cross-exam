@@ -279,8 +279,8 @@ function press(c) {
 }
 
 function historyForServer() {
-  return state.turns.map(({ suspectId, question, present, reply, claims, reveals, cracked: c }) => ({
-    suspectId, question, present, reply, claims, reveals, cracked: c,
+  return state.turns.map(({ suspectId, question, present, reply, claims, reveals, cracked: c, receipt }) => ({
+    suspectId, question, present, reply, claims, reveals, cracked: c, receipt,
   }));
 }
 
@@ -327,6 +327,7 @@ async function ask(text) {
       claims: data.claims,
       reveals: data.reveals.map((r) => r.id),
       cracked: data.cracked,
+      receipt: data.receipt,
       found: fresh.map((c) => c.id),
     });
     state.present = null;
@@ -393,6 +394,11 @@ function renderNotes() {
 function openAccuse() {
   if (state.result) {
     showResult();
+    return;
+  }
+  const min = state.info.minQuestions ?? 0;
+  if (state.turns.length < min) {
+    toast(`Ask at least ${min} questions before you accuse.`);
     return;
   }
   const pick = $('accuse-pick');

@@ -1,6 +1,10 @@
 # Cloudflare Worker: static files from public/ plus the /api proxy (free plan).
 # The key is a secret, never a var here:  npx wrangler secret put NEBIUS_API_KEY
 # Without it the game runs on the built-in mock model.
+# Also a secret: npx wrangler secret put RECEIPT_SECRET (any long random string). It signs
+# the receipts /api/accuse checks; without it a receipt only checks out on the instance
+# that issued it.
+# Rate limits and the daily cap are counted per instance, not across all of Cloudflare.
 name = "npc-cross-exam"
 main = "src/worker.js"
 compatibility_date = "2026-09-01"

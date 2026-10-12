@@ -49,6 +49,7 @@ export async function askTurn(app, game, suspectId, question, present = null) {
     claims: data.claims,
     reveals: data.reveals.map((r) => r.id),
     cracked: data.cracked,
+    receipt: data.receipt,
   });
   game.contradictions = data.contradictions;
   return data;

@@ -176,10 +176,96 @@ test('a suspect changes their story once; cracked is not counted twice', async (
 });
 
 test('POST /api/accuse: wrong suspect', async () => {
-  const res = await post(makeApp(), '/api/accuse', { suspectId: 'dana', history: [] });
+  const app = makeApp();
+  const game = newGame();
+  await askTurn(app, game, 'rosa', 'Where were you all evening?');
+  await askTurn(app, game, 'dana', 'When did you leave the museum?');
+  await askTurn(app, game, 'theo', 'Where were you after 21:00?');
+  const res = await post(app, '/api/accuse', { suspectId: 'dana', history: game.turns, unlocked: [...game.unlocked] });
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.equal(body.correct, false);
   assert.equal(body.culprit.id, 'theo');
   assert.equal(body.score.grade, 'C');
+});
+
+// Nothing that names the culprit may come back from a refused accusation.
+function assertNoSolution(body) {
+  const text = JSON.stringify(body);
+  for (const field of ['correct', 'culprit', 'solution', 'support', 'contradictions', 'score']) {
+    assert.ok(!(field in body), `refusal carries ${field}`);
+  }
+  assert.ok(!text.includes(caseData.solution), 'refusal leaks the solution');
+  assert.ok(!text.includes(caseData.suspects[caseData.culprit].name), 'refusal names the culprit');
+}
+
+test('POST /api/accuse with empty history returns no solution', async () => {
+  const app = makeApp();
+  for (const suspectId of Object.keys(caseData.suspects)) {
+    for (const history of [[], undefined]) {
+      const res = await post(app, '/api/accuse', { suspectId, history });
+      assert.equal(res.status, 409);
+      const body = await res.json();
+      assert.equal(body.error, 'too_early');
+      assertNoSolution(body);
+    }
+  }
+});
+
+test('POST /api/accuse: fewer real questions than the minimum returns no solution', async () => {
+  const app = makeApp();
+  const game = newGame();
+  await askTurn(app, game, 'rosa', 'Where were you all evening?');
+  await askTurn(app, game, 'theo', 'Where were you after 21:00?');
+  const res = await post(app, '/api/accuse', { suspectId: 'theo', history: game.turns });
+  assert.equal(res.status, 409);
+  assertNoSolution(await res.json());
+});
+
+test('POST /api/accuse: a made-up or edited history returns no solution', async () => {
+  const app = makeApp();
+  const game = newGame();
+  await askTurn(app, game, 'rosa', 'Where were you all evening?');
+  await askTurn(app, game, 'dana', 'When did you leave the museum?');
+  await askTurn(app, game, 'theo', 'Where were you after 21:00?');
+  const real = game.turns;
+
+  const forged = [0, 1, 2].map(() => ({ suspectId: 'rosa', question: 'Hi?', reply: 'Hello.', claims: [], reveals: [] }));
+  const noReceipts = real.map(({ receipt, ...t }) => t);
+  const edited = real.map((t, i) => (i === 1 ? { ...t, reply: 'I saw Theo take it.' } : t));
+  const cracked = real.map((t, i) => (i === 0 ? { ...t, cracked: true } : t));
+  const reordered = [real[1], real[0], real[2]];
+  const padded = [...real, { ...real[2] }];
+  const fakeMac = real.map((t) => ({ ...t, receipt: 'A'.repeat(43) }));
+
+  // Receipts from another server (a different key) do not count either.
+  const other = makeApp({ RECEIPT_SECRET: 'another-test-secret' });
+  const elsewhere = newGame();
+  for (const q of ['Where were you all evening?', 'Who came in tonight?', 'Was the case forced open?']) {
+    await askTurn(other, elsewhere, 'rosa', q);
+  }
+
+  for (const [name, history] of Object.entries({ forged, noReceipts, edited, cracked, reordered, padded, fakeMac, other: elsewhere.turns })) {
+    const res = await post(app, '/api/accuse', { suspectId: 'theo', history });
+    assert.equal(res.status, 400, name);
+    const body = await res.json();
+    assert.equal(body.error, 'bad_history', name);
+    assertNoSolution(body);
+  }
+
+  const ok = await post(app, '/api/accuse', { suspectId: 'theo', history: real });
+  assert.equal(ok.status, 200);
+  assert.equal((await ok.json()).solution, caseData.solution);
+});
+
+test('receipts survive a restart when RECEIPT_SECRET is set', async () => {
+  const env = { RECEIPT_SECRET: 'shared-test-secret' };
+  const first = makeApp(env);
+  const game = newGame();
+  for (const q of ['Where were you all evening?', 'Who came in tonight?', 'Was the case forced open?']) {
+    await askTurn(first, game, 'rosa', q);
+  }
+  const res = await post(makeApp(env), '/api/accuse', { suspectId: 'theo', history: game.turns });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).culprit.id, 'theo');
 });
